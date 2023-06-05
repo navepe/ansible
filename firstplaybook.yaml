@@ -1,0 +1,49 @@
+---
+- name: Check system performance
+  hosts: localhost
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    path: "/home/nave/work/repos/personal/ansible"
+
+  tasks:
+    - name: Print disk space information
+      command: df -h /dev/nvme0n1p2
+      register: space
+    - debug:
+            var: space.stdout_lines
+
+    - name: Run CPU utilization script
+      shell: top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}'
+      register: cpu_utilization_output
+    - debug:
+        var: cpu_utilization_output.stdout_lines[0]
+
+    - name: Print memory information
+      register: memory_output
+      debug:
+        var: ansible_memtotal_mb
+      
+    - name: Create your local file on master node
+      ansible.builtin.file:
+        path: "{{ path }}/sysinfo.log"
+        mode: '0644'
+        state: touch
+
+    - name: Save Print memory information to log file
+      copy:
+        content: |
+          Disk Space Information:
+          {{ space.stdout }}
+
+          CPU Information:
+          {{ cpu_utilization_output.stdout_lines | join('\n') }}
+
+          Memory Information:
+          {{ ansible_memtotal_mb }}
+        dest: "{{ path }}/sysinfo.log"
+
+    - name: Execute Cleaning Script
+      script: "{{ path }}/cleandisk.sh"
+      

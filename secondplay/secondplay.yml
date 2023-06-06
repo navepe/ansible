@@ -1,0 +1,43 @@
+---
+- name: Check system performance
+  hosts: localhost
+  become: yes
+  gather_facts: yes
+
+  vars:
+    path: "/home/nave/work/repos/personal/ansible/secondplay"
+
+  tasks:
+    - name: Print CPU Number of Cores
+      shell: nproc
+      register: cpu
+
+    - name: Print Disk Space Information
+      shell: df -h /dev/nvme0n1p2 | awk 'NR==2 {gsub(/[%G]/, "", $2); print $2}'
+      register: space
+
+    - name: Disk Used Percentage
+      shell: df -h /dev/nvme0n1p2 | awk 'NR==2 {sub(/%/, "", $5); print $5}'
+      register: used
+
+    - name: Print Memory info
+      shell: free -lh | awk 'NR==2 {print $2}'
+      register: memory
+
+    - name: Set hostname on conf file
+      lineinfile:
+        dest: "{{ path }}/sysinfo.log"
+        regexp: ^Hostname=.*
+        insertafter: ^# Hostname=
+        line: |
+            Hostname={{ ansible_hostname }}
+            Cpu={{ cpu.stdout }}
+            Memory={{ memory.stdout }}
+            Disk={{ space.stdout }}G
+            Used_Disk={{ used.stdout }}%
+        create: yes
+      
+    - name: Clean tmp FIles
+      shell: find /tmp/ -type f -mtime +2 -exec rm {} \;
+      when: used.stdout | int  > space.stdout | int / 2 
+      

@@ -1,0 +1,39 @@
+---
+- name: Check system performance
+  hosts: nbd-env
+  become: yes
+  gather_facts: yes
+  
+  vars:
+   path: "/home/omgili/log/machine_spec.txt"
+  
+  tasks:
+    - name: Get hostname
+      shell: cat /proc/sys/kernel/hostname
+      register: hostname
+
+    - name: Check OS Version
+      shell: cat /etc/issue | awk 'NR==1 {print $1,$2}'
+      register: os
+
+    - name: Print CPU Number of Cores
+      shell: nproc
+      register: cpu
+
+    - name: Print Disk Space Information
+      shell: df -h | awk 'NR==4 {gsub(/[%G]/, "", $2); print $2}'
+      register: space
+
+    - name: Print Memory info
+      shell: free -lh | awk 'NR==2 {print $2}'
+      register: memory
+
+    - name: save task result
+      local_action: shell echo {{ item }} >> {{ path }}
+      with_items:
+        - "Hostname: {{ hostname.stdout_lines }}"
+        - "OS: {{ os.stdout }}"
+        - "CPU: {{ cpu.stdout }}"
+        - "Disk size: {{ space.stdout }}"
+        - "Memory: {{ memory.stdout }}"
+
